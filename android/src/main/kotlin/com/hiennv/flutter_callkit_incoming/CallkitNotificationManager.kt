@@ -885,11 +885,13 @@ class CallkitNotificationManager(
     /**
      * Whether the incoming call should ring.
      *
-     * Deliberately does NOT consult `areNotificationsEnabled()`: a denied
-     * POST_NOTIFICATIONS still lets a self-managed call post its CallStyle
-     * notification, so gating the ringtone on the app-level permission turned
-     * a visible call into a silent one. What must silence the ring is the user
-     * muting the "Incoming Call" channel itself.
+     * Two things must NOT be able to silence a call that is still shown:
+     *  - `areNotificationsEnabled()`: a denied POST_NOTIFICATIONS still lets a
+     *    self-managed call post its CallStyle notification, so gating the
+     *    ringtone on it produced a visible but silent call.
+     *  - A channel left at LOW: choosing "Silenced" for this channel makes
+     *    Android drop the heads-up banner, and ringing anyway contradicts what
+     *    the user asked for. Only DEFAULT and above ring.
      */
     private fun incomingRingEnabled(): Boolean = getNotificationManager().run {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
@@ -897,7 +899,7 @@ class CallkitNotificationManager(
         }
         val channel = getNotificationChannel(NOTIFICATION_CHANNEL_ID_INCOMING)
         return channel != null &&
-            channel.importance > NotificationManagerCompat.IMPORTANCE_NONE
+            channel.importance >= NotificationManagerCompat.IMPORTANCE_DEFAULT
     }
 
     fun createNotificationChanel(data: Bundle) {
