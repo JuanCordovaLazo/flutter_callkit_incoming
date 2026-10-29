@@ -882,14 +882,22 @@ class CallkitNotificationManager(
         }
     }
 
-    private fun incomingChannelEnabled(): Boolean = getNotificationManager().run {
+    /**
+     * Whether the incoming call should ring.
+     *
+     * Deliberately does NOT consult `areNotificationsEnabled()`: a denied
+     * POST_NOTIFICATIONS still lets a self-managed call post its CallStyle
+     * notification, so gating the ringtone on the app-level permission turned
+     * a visible call into a silent one. What must silence the ring is the user
+     * muting the "Incoming Call" channel itself.
+     */
+    private fun incomingRingEnabled(): Boolean = getNotificationManager().run {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            return true
+        }
         val channel = getNotificationChannel(NOTIFICATION_CHANNEL_ID_INCOMING)
-
-        return areNotificationsEnabled() &&
-            ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-                channel != null &&
-                channel.importance > NotificationManagerCompat.IMPORTANCE_NONE) ||
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.O)
+        return channel != null &&
+            channel.importance > NotificationManagerCompat.IMPORTANCE_NONE
     }
 
     fun createNotificationChanel(data: Bundle) {
@@ -1028,7 +1036,7 @@ class CallkitNotificationManager(
     @SuppressLint("MissingPermission")
     fun showIncomingNotification(data: Bundle) {
         val callkitNotification = getIncomingNotification(data)
-        if (incomingChannelEnabled()) {
+        if (incomingRingEnabled()) {
             callkitSoundPlayerManager?.play(data)
             // Start Signify modification
             volumeKeyReceiver = VolumeKeyBroadcastReceiver()
