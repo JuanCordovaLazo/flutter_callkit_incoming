@@ -26,6 +26,7 @@ import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.provider.Settings
 import android.text.TextUtils
 import android.text.format.DateFormat
@@ -55,6 +56,14 @@ class CallkitNotificationManager(
         const val NOTIFICATION_CHANNEL_ID_MISSED = "callkit_missed_channel_id"
 
         private const val ACTION_VOLUME_CHANGED = "android.media.VOLUME_CHANGED_ACTION"
+
+        /**
+         * How long the incoming notification is given to appear before the ring
+         * decision is taken. Posting goes through the notification service, so
+         * the result is not readable on the very next instruction.
+         */
+        private const val POST_CHECK_ATTEMPTS = 4
+        private const val POST_CHECK_INTERVAL_MS = 50L
         private const val EXTRA_VOLUME_STREAM_TYPE = "android.media.EXTRA_VOLUME_STREAM_TYPE"
     }
 
@@ -882,14 +891,42 @@ class CallkitNotificationManager(
         }
     }
 
-    private fun incomingChannelEnabled(): Boolean = getNotificationManager().run {
+    /**
+     * Whether the ringtone may play.
+     *
+     * Deliberately does NOT consult `areNotificationsEnabled()`: a denied
+     * POST_NOTIFICATIONS still lets a self-managed call post its CallStyle
+     * notification, so gating the ring on the app-level permission turns a
+     * call the user can see into a call they cannot hear.
+     *
+     * What must silence the ring is the user muting the "Incoming Call"
+     * channel: "Silenced" records IMPORTANCE_LOW, and a channel left at LOW
+     * also drops the heads-up banner, so ringing anyway would contradict the
+     * choice. Only DEFAULT and above ring.
+     */
+    private fun incomingRingEnabled(): Boolean = getNotificationManager().run {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            return true
+        }
         val channel = getNotificationChannel(NOTIFICATION_CHANNEL_ID_INCOMING)
+        return channel != null &&
+            channel.importance >= NotificationManagerCompat.IMPORTANCE_DEFAULT
+    }
 
-        return areNotificationsEnabled() &&
-            ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-                channel != null &&
-                channel.importance > NotificationManagerCompat.IMPORTANCE_NONE) ||
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.O)
+    /**
+     * Whether the incoming notification is actually present.
+     *
+     * The system drops a notification it refuses to post without telling the
+     * app: below Android 13 there is no runtime permission, a channel can be
+     * left at NONE, and a vendor build may not honour the self-managed call
+     * exemption. The only reliable answer is to ask what the notification
+     * manager kept.
+     */
+    private fun isIncomingNotificationActive(id: Int): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true
+        }
+        return getNotificationManager().activeNotifications.any { it.id == id }
     }
 
     fun createNotificationChanel(data: Bundle) {
@@ -1025,10 +1062,33 @@ class CallkitNotificationManager(
     }
     // End Signify modification
 
+    /**
+     * Posts the incoming call notification and rings only when it is present.
+     *
+     * @return whether the notification is present, so the caller can report a
+     * call the system refused to present instead of alerting with nothing to
+     * answer.
+     */
     @SuppressLint("MissingPermission")
-    fun showIncomingNotification(data: Bundle) {
-        val callkitNotification = getIncomingNotification(data)
-        if (incomingChannelEnabled()) {
+    fun showIncomingNotification(data: Bundle): Boolean {
+        val callkitNotification = getIncomingNotification(data) ?: return false
+
+        getNotificationManager().notify(
+            callkitNotification.id, callkitNotification.notification
+        )
+
+        var posted = false
+        for (attempt in 0 until POST_CHECK_ATTEMPTS) {
+            if (isIncomingNotificationActive(callkitNotification.id)) {
+                posted = true
+                break
+            }
+            if (attempt < POST_CHECK_ATTEMPTS - 1) {
+                SystemClock.sleep(POST_CHECK_INTERVAL_MS)
+            }
+        }
+
+        if (posted && incomingRingEnabled()) {
             callkitSoundPlayerManager?.play(data)
             // Start Signify modification
             volumeKeyReceiver = VolumeKeyBroadcastReceiver()
@@ -1038,11 +1098,7 @@ class CallkitNotificationManager(
             )
             // End Signify modification
         }
-        callkitNotification?.let {
-            getNotificationManager().notify(
-                it.id, callkitNotification.notification
-            )
-        }
+        return posted
     }
 
     @SuppressLint("MissingPermission")
