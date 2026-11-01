@@ -1142,13 +1142,17 @@ class CallkitNotificationManager(
     }
 
     // Whether an incoming call can ring outside the app: notifications allowed
-    // and the incoming-call channel not turned off. A channel not created yet
-    // (no call so far) is created on, so it counts as on.
+    // and the incoming-call channel set to ring. A channel not created yet (no
+    // call so far) is created on, so it counts as on.
+    //
+    // The threshold is DEFAULT, not NONE: "Silenced" records IMPORTANCE_LOW and
+    // also drops the heads-up banner, so the call cannot ring or be seen. This
+    // has to answer the same question as the ring decision itself.
     fun canRingIncoming(): Boolean = getNotificationManager().run {
         if (!areNotificationsEnabled()) return false
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return true
         val channel = getNotificationChannel(NOTIFICATION_CHANNEL_ID_INCOMING) ?: return true
-        return channel.importance != NotificationManagerCompat.IMPORTANCE_NONE
+        return channel.importance >= NotificationManagerCompat.IMPORTANCE_DEFAULT
     }
 
     // The settings page that turns incoming calls back on: the app's
