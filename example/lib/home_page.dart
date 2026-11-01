@@ -239,6 +239,10 @@ class HomePageState extends State<HomePage> {
         switch (event) {
           case CallEventActionCallIncoming():
             break;
+          case CallEventActionCallNotPresented():
+            // The call exists but the system did not keep its notification, so
+            // there is nothing to answer. The host app decides what to do.
+            break;
           case CallEventActionCallStart():
             NavigationService.instance.pushNamedIfNotCurrent(
               AppRoute.callingPage,

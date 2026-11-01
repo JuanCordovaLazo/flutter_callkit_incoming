@@ -236,8 +236,17 @@ class CallkitIncomingBroadcastReceiver : BroadcastReceiver() {
                         val intent = CallkitIncomingActivity.getIntent(context, data)
                         context.startActivity(intent)
                     } else {
-                        getCallkitNotificationManager()?.showIncomingNotification(data)
+                        val presented =
+                            getCallkitNotificationManager()?.showIncomingNotification(data)
+                                ?: false
                         sendEventFlutter(CallkitConstants.ACTION_CALL_INCOMING, data)
+                        if (!presented) {
+                            // The call stays registered so the existing timeout
+                            // still ends it; only the alert is affected.
+                            sendEventFlutter(
+                                CallkitConstants.ACTION_CALL_NOT_PRESENTED, data
+                            )
+                        }
                         addCall(context, incomingData)
                     }
                 } catch (error: Exception) {

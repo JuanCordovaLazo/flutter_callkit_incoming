@@ -16,6 +16,14 @@ object CallkitConstants {
         "com.hiennv.flutter_callkit_incoming.ACTION_CALL_TOGGLE_HOLD"
     const val ACTION_CALL_TIMEOUT =
         "com.hiennv.flutter_callkit_incoming.ACTION_CALL_TIMEOUT"
+
+    /**
+     * Emitted when the incoming notification could not be posted, so the call
+     * exists but has no UI to answer it. Carries the same payload as
+     * ACTION_CALL_INCOMING; whether to alert, and how, is the host app's call.
+     */
+    const val ACTION_CALL_NOT_PRESENTED =
+        "com.hiennv.flutter_callkit_incoming.ACTION_CALL_NOT_PRESENTED"
     const val ACTION_CALL_CALLBACK =
         "com.hiennv.flutter_callkit_incoming.ACTION_CALL_CALLBACK"
     const val ACTION_CALL_CUSTOM =

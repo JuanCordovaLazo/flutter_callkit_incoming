@@ -280,6 +280,12 @@ class FlutterCallkitIncoming {
           throw const FormatException('[ACTION_CALL_INCOMING] body is null.');
         }
         return CallEventActionCallIncoming(callkitParams);
+      case CallEventConstants.actionCallNotPresented:
+        final callkitParams = toCallkitParams(data);
+        if (callkitParams == null) {
+          throw const FormatException('[ACTION_CALL_NOT_PRESENTED] body is null.');
+        }
+        return CallEventActionCallNotPresented(callkitParams);
       case CallEventConstants.actionCallStart:
         final callkitParams = toCallkitParams(data);
         if (callkitParams == null) {

@@ -17,6 +17,8 @@ abstract class CallEventConstants {
       'com.hiennv.flutter_callkit_incoming.ACTION_CALL_ENDED';
   static const String actionCallTimeout =
       'com.hiennv.flutter_callkit_incoming.ACTION_CALL_TIMEOUT';
+  static const String actionCallNotPresented =
+      'com.hiennv.flutter_callkit_incoming.ACTION_CALL_NOT_PRESENTED';
   static const String actionCallConnected =
       'com.hiennv.flutter_callkit_incoming.ACTION_CALL_CONNECTED';
   static const String actionCallCallback =
@@ -64,6 +66,22 @@ class CallEventActionCallIncoming extends CallEvent {
   @override
   String toString() =>
       'CallEventActionCallIncoming(callKitParams: $callKitParams)';
+}
+
+/// The incoming call exists but the system did not keep its notification, so
+/// there is no UI to answer it. Carries the same payload as the incoming event;
+/// the host app decides whether to alert, and how.
+class CallEventActionCallNotPresented extends CallEvent {
+  const CallEventActionCallNotPresented(this.callKitParams);
+
+  @override
+  String get eventName => CallEventConstants.actionCallNotPresented;
+
+  final CallKitParams callKitParams;
+
+  @override
+  String toString() =>
+      'CallEventActionCallNotPresented(callKitParams: $callKitParams)';
 }
 
 class CallEventActionCallStart extends CallEvent {
