@@ -914,15 +914,26 @@ class CallkitNotificationManager(
     }
 
     /**
-     * Whether the incoming notification is actually present.
+     * Whether the incoming notification is actually shown.
      *
      * The system drops a notification it refuses to post without telling the
-     * app: below Android 13 there is no runtime permission, a channel can be
-     * left at NONE, and a vendor build may not honour the self-managed call
-     * exemption. The only reliable answer is to ask what the notification
-     * manager kept.
+     * app, so the answer comes from what the notification manager kept.
+     *
+     * Below Android 13 the app-level setting is also required: there is no
+     * exemption to weigh, so a disabled switch always means the call cannot be
+     * seen. It costs nothing to check and covers builds that keep reporting a
+     * notification as posted after hiding it.
+     *
+     * From Android 13 the call notification can be exempt from
+     * POST_NOTIFICATIONS, so a listed notification really is a visible one and
+     * the listing is authoritative on its own.
      */
-    private fun isIncomingNotificationActive(id: Int): Boolean {
+    private fun isIncomingNotificationPresented(id: Int): Boolean {
+        if (!getNotificationManager().areNotificationsEnabled() &&
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+        ) {
+            return false
+        }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             return true
         }
@@ -1079,7 +1090,7 @@ class CallkitNotificationManager(
 
         var posted = false
         for (attempt in 0 until POST_CHECK_ATTEMPTS) {
-            if (isIncomingNotificationActive(callkitNotification.id)) {
+            if (isIncomingNotificationPresented(callkitNotification.id)) {
                 posted = true
                 break
             }
