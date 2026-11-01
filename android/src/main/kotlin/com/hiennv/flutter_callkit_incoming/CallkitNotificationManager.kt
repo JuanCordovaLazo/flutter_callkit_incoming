@@ -62,8 +62,8 @@ class CallkitNotificationManager(
          * decision is taken. Posting goes through the notification service, so
          * the result is not readable on the very next instruction.
          */
-        private const val POST_CHECK_ATTEMPTS = 4
-        private const val POST_CHECK_INTERVAL_MS = 50L
+        private const val POST_CHECK_ATTEMPTS = 6
+        private const val POST_CHECK_INTERVAL_MS = 100L
         private const val EXTRA_VOLUME_STREAM_TYPE = "android.media.EXTRA_VOLUME_STREAM_TYPE"
     }
 
@@ -1088,8 +1088,18 @@ class CallkitNotificationManager(
             callkitNotification.id, callkitNotification.notification
         )
 
+        // Android 13 only exempts the call notification from the notification
+        // permission once Telecom has the call registered, and registering it
+        // is asynchronous. Posting straight after the request can therefore be
+        // refused even though the exemption applies a moment later, so the post
+        // is retried within the same bounded window.
         var posted = false
         for (attempt in 0 until POST_CHECK_ATTEMPTS) {
+            if (attempt > 0) {
+                getNotificationManager().notify(
+                    callkitNotification.id, callkitNotification.notification
+                )
+            }
             if (isIncomingNotificationPresented(callkitNotification.id)) {
                 posted = true
                 break
