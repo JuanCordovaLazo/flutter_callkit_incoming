@@ -934,6 +934,19 @@ class CallkitNotificationManager(
         ) {
             return false
         }
+        // A channel turned off keeps the record in the active list at
+        // importance NONE, so the listing alone would call it presented when
+        // the shade shows nothing at all. "Visible" is the question here, not
+        // "silent": LOW still reaches the shade, NONE does not.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel =
+                getNotificationManager().getNotificationChannel(NOTIFICATION_CHANNEL_ID_INCOMING)
+            if (channel != null &&
+                channel.importance <= NotificationManagerCompat.IMPORTANCE_NONE
+            ) {
+                return false
+            }
+        }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             return true
         }
